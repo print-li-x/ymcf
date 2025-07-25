@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Home from '@/views/Home.vue'
 import message from '@/views/daily_message.vue'
+import insurance from '@/views/insurance.vue'
 
 export default createRouter({
   history: createWebHistory(),
@@ -16,9 +17,9 @@ export default createRouter({
       component: Home
     },
     {
-      path: '/insurance',
-      name: 'Insurance',
-      component: Home
+      path: '/insurance',//参数化保险
+      name: 'insurance',
+      component: insurance
     },
     {
       path: '/multimodal',
