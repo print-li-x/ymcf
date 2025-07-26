@@ -24,7 +24,7 @@ onMounted(initTheme)
 html, body, #app {
   height: 100%;
   margin: 0;
-  overflow: hidden;
+  overflow-x: hidden;
   background: var(--bg-primary);
   color: var(--text-primary);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;

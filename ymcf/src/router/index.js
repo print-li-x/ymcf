@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Home from '@/views/Home.vue'
 import message from '@/views/daily_message.vue'
-import insurance from '@/views/insurance.vue'
+import insurance from '@/views/InsuranceOverview.vue'
 
 export default createRouter({
   history: createWebHistory(),
