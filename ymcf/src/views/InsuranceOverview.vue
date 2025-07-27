@@ -47,13 +47,14 @@ import ClaimSimulator from '@/components/insurance/ClaimSimulator.vue'
 .map-and-result {
   display: flex;
   gap: 16px;
-  height:600px;
+  height:auto;
 }
 
 .map-wrapper {
   flex: 2;
   border: 1px solid #ccc;
   border-radius: 8px;
+  height: auto;
   overflow: hidden;
 }
 

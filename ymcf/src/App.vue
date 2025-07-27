@@ -29,5 +29,17 @@ html, body, #app {
   color: var(--text-primary);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   transition: background-color .5s ease, color .5s ease;
+  /* 滚动条样式（作用于整个页面） */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background-color: var(--scrollbar-track);
+  }
 }
 </style>
