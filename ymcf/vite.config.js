@@ -3,10 +3,19 @@ import vue from '@vitejs/plugin-vue'
 import cesium from 'vite-plugin-cesium'
 import { fileURLToPath, URL } from 'node:url'
 
+// 自动引入组件
+import Components from 'unplugin-vue-components/vite'
+// Naive UI 解析器
+import { NaiveUiResolver } from 'unplugin-vue-components/resolvers'
+
+
+
 export default defineConfig({
   plugins: [
     vue(),      
-    cesium()      
+    cesium(), 
+    Components({
+      resolvers: [NaiveUiResolver()]  })
   ],
 
   resolve: {
@@ -20,7 +29,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:8000',
         changeOrigin: true,
         secure: false
       }

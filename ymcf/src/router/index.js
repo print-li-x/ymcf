@@ -21,6 +21,7 @@ export default createRouter({
       name: 'insurance',
       component: insurance
     },
+
     {
       path: '/multimodal',
       name: 'message',

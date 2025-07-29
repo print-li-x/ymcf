@@ -1,9 +1,5 @@
 <template>
   <div class="insurance-overview">
-    <!-- 第一部分：保费因素配置 -->
-    <section class="full-row">
-      <PremiumFactorBox :editable="true" />
-    </section>
 
     <!-- 第二部分：地图 + 保费结果 -->
     <section class="map-and-result">
@@ -15,6 +11,11 @@
       </div>
     </section>
 
+    <!-- 第一部分：理赔计算 -->
+    <section class="full-row">
+      <InsurancePay/>
+    </section>
+
     <!-- 第三部分：模拟理赔 -->
     <section class="full-row">
       <ClaimSimulator />
@@ -23,10 +24,10 @@
 </template>
 
 <script setup>
-import PremiumFactorBox from '@/components/insurance/PremiumFactorBox.vue'
 import RiskMap from '@/components/insurance/Risk.vue'
 import PremiumResultCard from '@/components/insurance/PremiumResultCard.vue'
 import ClaimSimulator from '@/components/insurance/ClaimSimulator.vue'
+import InsurancePay  from '../components/insurance/Insurance.vue'     
 </script>
 
 <style scoped>

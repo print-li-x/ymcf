@@ -9,7 +9,7 @@ const route  = useRoute()
 // 指定路径
 const menus = ref([
   { key: 'disaster',  name: '巨灾预测',  path: '/disaster', children: null },
-  { key: 'insurance', name: '参数化保险', path: '/insurance' },
+  { key: 'insurance', name: '保险理赔', path: '/insurance' },
   { key: 'multimodal',name: '多模态数据', path: '/multimodal' }
 ])
 

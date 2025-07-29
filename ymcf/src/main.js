@@ -1,8 +1,14 @@
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
-import { initTheme } from '@/utils/theme.js'
+import { createPinia } from 'pinia'
+import naive from 'naive-ui'
+import { initTheme } from '@/utils/theme'
 
-initTheme() // ← 这行是重点
+initTheme()
 
-createApp(App).use(router).mount('#app')
+const app = createApp(App)
+app.use(router)
+app.use(createPinia())
+app.use(naive)
+app.mount('#app')
