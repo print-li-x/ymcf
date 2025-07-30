@@ -1,112 +1,128 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import axios from 'axios'
-import { isDarkMode, toggleTheme } from '@/utils/theme.js'
+import { ref, watch, defineProps } from 'vue';
+import axios from 'axios';
+// ⚡️ 导入 Naive UI 组件 ⚡️
+import { NCard, NEmpty } from 'naive-ui'; 
 
-const location = ref({ lng: 118.1, lat: 24.5 })
-const selectedDate = ref(new Date().toISOString().slice(0, 10))
-const prediction = ref({})
-const premiumInfo = ref({})
-const zoneCompensation = ref({})
-const showPrepayTip = ref(false)
-
-const fetchPrediction = async () => {
-  try {
-    const resPredict = await axios.post('/api/predict', {
-      location: location.value,
-      date: selectedDate.value
-    })
-    prediction.value = resPredict.data
-
-    const resPremium = await axios.post('/api/premium', {
-      location: location.value,
-      prediction: prediction.value
-    })
-    premiumInfo.value = resPremium.data
-
-    const resZone = await axios.get(`/api/zone-compensation?lng=${location.value.lng}&lat=${location.value.lat}`)
-    zoneCompensation.value = resZone.data
-
-    showPrepayTip.value = prediction.value.daysBefore <= 3 && prediction.value.level >= 10
-  } catch (error) {
-    console.error('Error fetching prediction data:', error)
+// ⚡️ 定义接收的 props ⚡️
+const props = defineProps({
+  selectedCoordinates: {
+    type: Object, // 期望接收一个对象 { lat: number, lon: number }
+    default: null
   }
-}
+});
 
-onMounted(() => {
-  fetchPrediction()
-})
+const weatherInfo = ref(null); // 用于存储从后端获取的天气数据
+
+// ⚡️ getWeatherData 函数 ⚡️
+const getWeatherData = async (lat, lon) => {
+  weatherInfo.value = '正在获取数据...'; // 提示用户正在加载
+  try {
+    // ⚡️ Axios 请求路径已简化为相对路径 '/positions' ⚡️
+    // 因为我们假设在 main.js 中已经配置了 axios.defaults.baseURL = 'http://localhost:8020/variables'
+    const res = await axios.post('/variables/positions', { 
+      name: 'surf_10u', // 变量名称，请务必根据你的 NetCDF 文件实际变量名来定
+      lat: lat,
+      lon: lon,
+      time_index: 0,   // 时间索引，0 表示第一个时间步，根据你的数据调整
+      // level_index: 0, // 如果你请求的变量有 level 维度，并且需要指定层，可以加上这个
+    });
+    console.log('Insurance.vue 获取到的天气数据:', res.data);
+    
+    // 根据后端 DataResponse 模型，实际数据在 res.data.data 中
+    if (res.data.success) {
+      weatherInfo.value = res.data.data;
+      if (Array.isArray(res.data.data) && res.data.data.length > 0) {
+        weatherInfo.value = res.data.data[0]; 
+      }
+      // ⚡️ 调试：打印最终赋给 weatherInfo.value 的值 ⚡️
+      console.log('实际赋值给 weatherInfo.value 的数据:', weatherInfo.value);
+    } else {
+      weatherInfo.value = '未获取到有效数据';
+    }
+
+  } catch (err) {
+    console.error('获取数据失败:', err);
+    weatherInfo.value = '获取数据失败！'; // 更新显示状态
+    if (err.response) {
+      console.error('响应数据:', err.response.data);
+      console.error('响应状态码:', err.response.status);
+    } else if (err.request) {
+      console.error('请求没有响应:', err.request);
+    } else {
+      console.error('错误信息:', err.message);
+    }
+  }
+};
+
+// ⚡️ 监听 selectedCoordinates 属性的变化 ⚡️
+watch(() => props.selectedCoordinates, async (newCoords) => {
+  if (newCoords && newCoords.lat !== null && newCoords.lon !== null) {
+    console.log('Insurance.vue 收到坐标:', newCoords);
+    await getWeatherData(newCoords.lat, newCoords.lon);
+  } else {
+    weatherInfo.value = null; // 清空数据，如果坐标无效
+  }
+}, { immediate: true }); 
 </script>
 
 <template>
-  <div class="insurance-container">
+  <div class="insurance-info p-4 bg-blue-100 rounded-lg shadow-md">
+    <h2 class="text-xl font-bold mb-2">保险相关参数</h2>
 
-    <div class="premium-box">
-      <h2>赔付方案智能推荐</h2>
-      <div class="info-block">
-        <p><strong>预测等级：</strong> {{ prediction.level || '加载中...' }}</p>
-        <p><strong>预计到达时间：</strong> {{ prediction.arrivalDate || '加载中...' }}</p>
-        <p><strong>当前地点：</strong> 经度 {{ location.lng }}, 纬度 {{ location.lat }}</p>
-      </div>
+    <section class="result-section mt-4">
+      <div class="result-wrapper">
+        <n-card  embedded :bordered="false" size="large">
+          <template v-if="weatherInfo && weatherInfo !== '正在获取数据...' && weatherInfo !== '未获取到有效数据' && weatherInfo !== '获取数据失败！'">
+            <div class="data-display">
+              <p>
+                当前选定经度: {{ props.selectedCoordinates.lon?.toFixed(4) }}
+                <br>
+                当前选定纬度: {{ props.selectedCoordinates.lat?.toFixed(4) }}
+              </p>
+              <p>
+                `surf_10u` 参数值: <b>{{ weatherInfo.toFixed(4) }}</b>
+                <br>
+                <span style="font-size: 0.9em; color: #666;">（数值越低，可能表示风速越小，具体含义需根据数据源确定）</span>
+              </p>
+              
+              </div>
+          </template>
+          <template v-else-if="weatherInfo === '正在获取数据...'">
+            <n-empty description="正在加载数据，请稍候..." />
+          </template>
+          <template v-else-if="weatherInfo === '未获取到有效数据' || weatherInfo === '获取数据失败！'">
+            <n-empty description="无法获取数据，请重试或更换区域。" />
+          </template>
+          <template v-else-if="!props.selectedCoordinates">
+            <n-empty description="请在地图上点击选择一个位置，以获取保险相关参数。" />
+          </template>
+          <template v-else>
+            <n-empty description="请在地图上点击区域以查看详细信息" />
+          </template>
 
-      <div class="info-block">
-        <p><strong>基础保费：</strong> {{ premiumInfo.base || '计算中...' }} 元</p>
-        <p><strong>差异化赔付系数：</strong> {{ zoneCompensation.multiplier || '获取中...' }} 倍</p>
-        <p><strong>最终保费：</strong> {{ premiumInfo.final || '计算中...' }} 元</p>
+        </n-card>
       </div>
-
-      <div v-if="showPrepayTip" class="tip-block">
-        ⚠️ 已触发提前赔付机制：建议预先赔付保额的 30%，用于防灾准备
-      </div>
-    </div>
+    </section>
   </div>
 </template>
 
 <style scoped>
-.insurance-container {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  min-height: 100vh;
-  padding: 24px;
-  box-sizing: border-box;
-  overflow-y: auto;
+/* 确保这些样式适合你的布局 */
+.insurance-info {
+  /* 你的样式，例如： */
+  /* position: absolute; top: 20px; right: 20px; */
+  /* 或者根据 App.vue 中的 flex 布局来调整 */
+  width: 100%; /* 假设在 App.vue 的 flex 容器中占据宽度 */
+  max-width: 400px; /* 或者你希望的最大宽度 */
 }
-
-.theme-toggle {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  background-color: var(--card-bg);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
-  padding: 6px 12px;
-  border-radius: 4px;
-  cursor: pointer;
+.result-section {
+  margin-top: 20px;
 }
-
-.theme-toggle:hover {
-  background-color: var(--hover-bg);
-}
-
-.premium-box {
-  background-color: var(--card-bg);
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px var(--shadow-color);
-  max-width: 600px;
-  margin: 80px auto 0 auto;
-}
-
-.info-block {
-  margin-bottom: 16px;
-}
-
-.tip-block {
-  margin-top: 16px;
-  padding: 12px;
-  background-color: var(--hover-bg);
-  border-left: 4px solid orange;
+.data-display {
+  margin-top: 15px;
+  padding: 10px;
+  background-color: #f9f9f9;
   border-radius: 8px;
-  font-weight: bold;
 }
 </style>

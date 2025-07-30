@@ -1,7 +1,7 @@
 
 <template>
   <div class="premium-result-card">
-    <h3>保费测算结果</h3>
+    <h3>选中位置信息陈列</h3>
     <div v-if="premium !== null" class="result-content">
       <p><strong>选择位置：</strong>{{ locationName }}</p>
       <p><strong>预估保费：</strong>{{ premium }} 元</p>

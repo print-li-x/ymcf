@@ -7,19 +7,18 @@ import CesiumMap from '@/components/CesiumMap.vue'
 <template>
   <div class="riskmap-container">
     <!-- 风险地图功能区域 -->
-    <h2>风险地图</h2>
-    <div class="map-section">
+    <n-card  embedded :bordered="false" size="large">
+    <p style="font-size: large;padding-top: 0px;font-weight: bolder;">🗺️ 风险地图 - 点击区域查看保费</p>
       <CesiumMap/>
-    </div>
+    </n-card>
   </div>
 </template>
 
 <style scoped>
 .riskmap-container {
-  background-color: var(--bg-primary);
   color: var(--text-primary);
-  height: 100vh;
-  padding: 24px;
+  height: auto;
+  padding: 10px;
   box-sizing: border-box;
 }
 
