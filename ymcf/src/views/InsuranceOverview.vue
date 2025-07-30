@@ -23,14 +23,9 @@
       </div>
     </section>
 
-    <section class="full-row section-card">
-      <n-card title="📊 区域保费估算" embedded :bordered="false" size="large">
-      </n-card>
-    </section>
-
 
     <section class="full-row section-card">
-      <n-card title="🌀 模拟理赔流程 - 典型案例演示" embedded :bordered="false" size="large">
+      <n-card title="🌀 模拟理赔流程" embedded :bordered="false" size="large">
         <ClaimSimulator />
       </n-card>
     </section>

@@ -84,10 +84,6 @@ watch(
 
 <template>
   <div id="cesiumContainer" class="w-full h-full relative"></div>
-  <div v-if="coords" class="absolute top-4 left-4 bg-white p-2 rounded shadow-md z-10">
-    <p>经度: {{ coords.lng.toFixed(4) }}</p>
-    <p>纬度: {{ coords.lat.toFixed(4) }}</p>
-    </div>
 </template>
 
 <style scoped>
