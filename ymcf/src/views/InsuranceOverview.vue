@@ -19,9 +19,7 @@
     
 
       <div class="result-wrapper">
-        <n-card title="" embedded :bordered="false" size="large">
           <InsurancePay :selectedCoordinates="currentSelectedCoordinates"/>
-        </n-card>
       </div>
     </section>
 

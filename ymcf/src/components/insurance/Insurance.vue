@@ -67,11 +67,6 @@ watch(() => props.selectedCoordinates, async (newCoords) => {
 </script>
 
 <template>
-  <div class="insurance-info p-4 bg-blue-100 rounded-lg shadow-md">
-    <h2 class="text-xl font-bold mb-2">保险相关参数</h2>
-
-    <section class="result-section mt-4">
-      <div class="result-wrapper">
         <n-card  embedded :bordered="false" size="large">
           <template v-if="weatherInfo && weatherInfo !== '正在获取数据...' && weatherInfo !== '未获取到有效数据' && weatherInfo !== '获取数据失败！'">
             <div class="data-display">
@@ -102,9 +97,6 @@ watch(() => props.selectedCoordinates, async (newCoords) => {
           </template>
 
         </n-card>
-      </div>
-    </section>
-  </div>
 </template>
 
 <style scoped>
@@ -116,13 +108,9 @@ watch(() => props.selectedCoordinates, async (newCoords) => {
   width: 100%; /* 假设在 App.vue 的 flex 容器中占据宽度 */
   max-width: 400px; /* 或者你希望的最大宽度 */
 }
-.result-section {
-  margin-top: 20px;
-}
+
 .data-display {
-  margin-top: 15px;
   padding: 10px;
-  background-color: #f9f9f9;
   border-radius: 8px;
 }
 </style>
