@@ -18,8 +18,6 @@ const weatherInfo = ref(null); // 用于存储从后端获取的天气数据
 const getWeatherData = async (lat, lon) => {
   weatherInfo.value = '正在获取数据...'; // 提示用户正在加载
   try {
-    // ⚡️ Axios 请求路径已简化为相对路径 '/positions' ⚡️
-    // 因为我们假设在 main.js 中已经配置了 axios.defaults.baseURL = 'http://localhost:8020/variables'
     const res = await axios.post('/variables/positions', { 
       name: 'surf_10u', // 变量名称，请务必根据你的 NetCDF 文件实际变量名来定
       lat: lat,
