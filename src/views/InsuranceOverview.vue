@@ -247,6 +247,7 @@ const handleResetSimulation = () => {
   /*竖直居中*/
   align-items: center; 
   justify-content: center;
+  border-radius: 8px;
 }
 
 .input-panel-container {

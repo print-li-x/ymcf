@@ -1,114 +1,207 @@
 <script setup>
 import { ref, watch, defineProps } from 'vue';
 import axios from 'axios';
-// ⚡️ 导入 Naive UI 组件 ⚡️
-import { NCard, NEmpty } from 'naive-ui'; 
+import { NCard, NEmpty, NSelect, NButton, NInputNumber } from 'naive-ui'; 
+import { computed } from 'vue';
 
-// ⚡️ 定义接收的 props ⚡️
 const props = defineProps({
   selectedCoordinates: {
-    type: Object, // 期望接收一个对象 { lat: number, lon: number }
+    type: Object,
     default: null
   }
 });
 
-const weatherInfo = ref(null); // 用于存储从后端获取的天气数据
+// 存储从后端获取的全部气象数据
+const weatherInfo = ref(null); 
+// 用户选择的标的类型
+const selectedSubject = ref(null);
+// 基础保额
+const baseInsuranceAmount = ref(100000); 
 
-// ⚡️ getWeatherData 函数 ⚡️
+// 标的类型选项
+const subjectOptions = [
+  { label: '渔排', value: '渔排', coefficient: 1.5, base_payout: 0.60 },
+  { label: '农房', value: '农房', coefficient: 1.2, base_payout: 0.70 },
+  { label: '光伏电站', value: '光伏电站', coefficient: 1.3, base_payout: 0.50 },
+  { label: '普通企业厂房', value: '普通企业厂房', coefficient: 1.0, base_payout: 0.70 }, // 假设基础赔付率
+  { label: '民房(砖木结构)', value: '民房(砖木结构)', coefficient: 1.2, base_payout: 0.60 },
+  { label: '多层住宅（≤7层）', value: '多层住宅（≤7层）', coefficient: 1.0, base_payout: 0.80 },
+  { label: '高层住宅（≥8层）', value: '高层住宅（≥8层）', coefficient: 0.9, base_payout: 0.85 },
+];
+
+// 假设后端返回的数据格式（为了前端计算方便，我们先模拟一个）
+// 实际中需要后端接口返回这些值
+const simulatedWeatherData = ref({
+  wind_speed: 25.5, // 单位 m/s
+  rainfall: 60,     // 单位 mm
+  distance: 8,      // 单位 km
+});
+
+// ⚡️ 计算风速系数 ⚡️
+const windCoefficient = computed(() => {
+  const v = simulatedWeatherData.value?.wind_speed;
+  if (v === null || v === undefined) return 1.0;
+  if (v >= 32.7) return 3.0;
+  if (v >= 24.5) return 2.0;
+  if (v >= 17.2) return 1.5;
+  if (v >= 10.8) return 1.2;
+  return 1.0;
+});
+
+// ⚡️ 计算降水系数 ⚡️
+const rainfallCoefficient = computed(() => {
+  const r = simulatedWeatherData.value?.rainfall;
+  if (r === null || r === undefined) return 1.0;
+  if (r >= 251) return 1.5;
+  if (r >= 101) return 1.3;
+  if (r >= 50) return 1.1;
+  return 1.0;
+});
+
+// ⚡️ 计算距离系数 ⚡️
+const distanceCoefficient = computed(() => {
+  const d = simulatedWeatherData.value?.distance;
+  if (d === null || d === undefined) return 1.0;
+  if (d < 1) return 2.0;
+  if (d >= 1 && d <= 5) return 1.8;
+  if (d > 5 && d <= 10) return 1.5;
+  if (d > 10 && d <= 50) return 1.2;
+  return 1.0;
+});
+
+// ⚡️ 计算风险调整系数 ⚡️
+const riskAdjustmentCoefficient = computed(() => {
+  const subjectCoeff = subjectOptions.find(opt => opt.value === selectedSubject.value)?.coefficient || 1.0;
+  return windCoefficient.value * rainfallCoefficient.value * distanceCoefficient.value * subjectCoeff;
+});
+
+// ⚡️ 获取气象数据，这里我们先用模拟数据，待后端接口更新后再修改 ⚡️
 const getWeatherData = async (lat, lon) => {
-  weatherInfo.value = '正在获取数据...'; // 提示用户正在加载
+  weatherInfo.value = '正在获取数据...';
   try {
-    const res = await axios.post('/variables/positions', { 
-      name: 'surf_10u', // 变量名称，请务必根据你的 NetCDF 文件实际变量名来定
+    // 假设后端返回的是一个更完整的数据对象
+    const res = await axios.post('/positions', { 
+      name: 'surf_10u', // 暂定为风速
       lat: lat,
       lon: lon,
-      time_index: 0,   // 时间索引，0 表示第一个时间步，根据你的数据调整
-      // level_index: 0, // 如果你请求的变量有 level 维度，并且需要指定层，可以加上这个
+      time_index: 0, 
     });
-    console.log('Insurance.vue 获取到的天气数据:', res.data);
     
-    // 根据后端 DataResponse 模型，实际数据在 res.data.data 中
     if (res.data.success) {
-      weatherInfo.value = res.data.data;
-      if (Array.isArray(res.data.data) && res.data.data.length > 0) {
-        weatherInfo.value = res.data.data[0]; 
-      }
-      // ⚡️ 调试：打印最终赋给 weatherInfo.value 的值 ⚡️
-      console.log('实际赋值给 weatherInfo.value 的数据:', weatherInfo.value);
+      // ⚡️ ⚠️ 实际开发时，这里需要根据后端返回的真实数据结构来赋值 ⚠️ 
+      // 假设后端现在能返回一个包含所有参数的对象
+      weatherInfo.value = {
+        wind_speed: res.data.data, // 假设 surf_10u 就是风速
+        rainfall: 60, // 假设后端返回的降水值
+        distance: 8,  // 假设后端返回的距离值
+      };
+
+      // 更新模拟数据以供计算
+      simulatedWeatherData.value = weatherInfo.value;
     } else {
       weatherInfo.value = '未获取到有效数据';
     }
-
   } catch (err) {
     console.error('获取数据失败:', err);
-    weatherInfo.value = '获取数据失败！'; // 更新显示状态
-    if (err.response) {
-      console.error('响应数据:', err.response.data);
-      console.error('响应状态码:', err.response.status);
-    } else if (err.request) {
-      console.error('请求没有响应:', err.request);
-    } else {
-      console.error('错误信息:', err.message);
-    }
+    weatherInfo.value = '获取数据失败！';
   }
 };
 
-// ⚡️ 监听 selectedCoordinates 属性的变化 ⚡️
 watch(() => props.selectedCoordinates, async (newCoords) => {
   if (newCoords && newCoords.lat !== null && newCoords.lon !== null) {
-    console.log('Insurance.vue 收到坐标:', newCoords);
-    await getWeatherData(newCoords.lat, newCoords.lon);
+    getWeatherData(newCoords.lat, newCoords.lon);
   } else {
-    weatherInfo.value = null; // 清空数据，如果坐标无效
+    weatherInfo.value = null;
   }
-}, { immediate: true }); 
+}, { immediate: true });
 </script>
 
 <template>
-        <n-card  embedded :bordered="false" size="large">
-          <template v-if="weatherInfo && weatherInfo !== '正在获取数据...' && weatherInfo !== '未获取到有效数据' && weatherInfo !== '获取数据失败！'">
+  <div class="insurance-info p-4 bg-blue-100 rounded-lg shadow-md">
+    <h2 class="text-xl font-bold mb-2">保险相关参数</h2>
+
+    <div class="config-section mb-4">
+      <p>**选择标的物类型**</p>
+      <n-select v-model:value="selectedSubject" :options="subjectOptions" placeholder="请选择标的物" />
+      
+      <p class="mt-4">**设定基础保额**</p>
+      <n-input-number v-model:value="baseInsuranceAmount" :min="10000" :step="10000" placeholder="请输入保额" />
+    </div>
+
+    <section class="result-section mt-4">
+      <div class="result-wrapper">
+        <n-card title="📊 区域保费估算" embedded :bordered="false" size="large">
+          <template v-if="simulatedWeatherData && selectedSubject">
             <div class="data-display">
               <p>
-                当前选定经度: {{ props.selectedCoordinates.lon?.toFixed(4) }}
+                **当前选定经度:** {{ props.selectedCoordinates.lon?.toFixed(4) }}
                 <br>
-                当前选定纬度: {{ props.selectedCoordinates.lat?.toFixed(4) }}
-              </p>
-              <p>
-                `surf_10u` 参数值: <b>{{ weatherInfo.toFixed(4) }}</b>
-                <br>
-                <span style="font-size: 0.9em; color: #666;">（数值越低，可能表示风速越小，具体含义需根据数据源确定）</span>
+                **当前选定纬度:** {{ props.selectedCoordinates.lat?.toFixed(4) }}
               </p>
               
-              </div>
+              <n-divider />
+              
+              <h4>**计算参数**</h4>
+              <p>
+                风速 (V): <b>{{ simulatedWeatherData.wind_speed?.toFixed(2) }}</b> m/s
+                <br>
+                降水 (R): <b>{{ simulatedWeatherData.rainfall }}</b> mm
+                <br>
+                距台风中心距离 (D): <b>{{ simulatedWeatherData.distance }}</b> km
+              </p>
+
+              <n-divider />
+
+              <h4>**风险调整系数**</h4>
+              <p>
+                风速系数: <b>{{ windCoefficient.toFixed(1) }}</b>
+                <br>
+                降水系数: <b>{{ rainfallCoefficient.toFixed(1) }}</b>
+                <br>
+                距离系数: <b>{{ distanceCoefficient.toFixed(1) }}</b>
+                <br>
+                标的系数: <b>{{ subjectOptions.find(opt => opt.value === selectedSubject)?.coefficient || 'N/A' }}</b>
+              </p>
+
+              <n-divider />
+              
+              <h3>**最终风险调整系数:**</h3>
+              <p class="text-2xl font-bold text-info">
+                {{ riskAdjustmentCoefficient.toFixed(2) }}
+              </p>
+
+              <p class="mt-4">
+                **估算年化保费：** <br>
+                <span class="text-xl font-bold">{{ (baseInsuranceAmount * riskAdjustmentCoefficient / 100).toFixed(2) }}</span> 元
+                <br>
+                <span class="text-gray-500 text-sm">（* 假设基础保费为保额的 1%）</span>
+              </p>
+            </div>
           </template>
-          <template v-else-if="weatherInfo === '正在获取数据...'">
-            <n-empty description="正在加载数据，请稍候..." />
+          
+          <template v-else-if="weatherInfo === '正在获取数据...' || !props.selectedCoordinates">
+            <n-empty description="请在地图上点击区域，并选择标的物以进行计算" />
           </template>
           <template v-else-if="weatherInfo === '未获取到有效数据' || weatherInfo === '获取数据失败！'">
             <n-empty description="无法获取数据，请重试或更换区域。" />
           </template>
-          <template v-else-if="!props.selectedCoordinates">
-            <n-empty description="请在地图上点击选择一个位置，以获取保险相关参数。" />
-          </template>
           <template v-else>
-            <n-empty description="请在地图上点击区域以查看详细信息" />
+            <n-empty description="请选择标的物类型以计算风险系数" />
           </template>
-
         </n-card>
+      </div>
+    </section>
+  </div>
 </template>
 
 <style scoped>
-/* 确保这些样式适合你的布局 */
-.insurance-info {
-  /* 你的样式，例如： */
-  /* position: absolute; top: 20px; right: 20px; */
-  /* 或者根据 App.vue 中的 flex 布局来调整 */
-  width: 100%; /* 假设在 App.vue 的 flex 容器中占据宽度 */
-  max-width: 400px; /* 或者你希望的最大宽度 */
+/* 这里添加一些简单的样式 */
+.config-section p {
+  font-weight: bold;
+  margin-bottom: 5px;
 }
-
-.data-display {
-  padding: 10px;
-  border-radius: 8px;
+.data-display h4, .data-display h3 {
+  margin-top: 15px;
+  margin-bottom: 5px;
 }
 </style>

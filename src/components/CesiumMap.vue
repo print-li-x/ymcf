@@ -14,6 +14,7 @@ const route  = useRoute()
 let  viewer 
 const debugText = ref('') 
 const coords = ref(null); 
+const emits = defineEmits(['coordinates-selected']);
 
 const CHINA_RECT = Cesium.Rectangle.fromDegrees(
   73.66, 18.16, 135.05, 53.55
