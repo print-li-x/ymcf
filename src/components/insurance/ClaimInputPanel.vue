@@ -8,21 +8,20 @@
         strong
         size="medium"
       >
-        {{ isManualInputMode ? '手动输入模式' : '自动/调试模式' }}
-      </n-button>
-      <n-button
-          v-if="!isManualInputMode"
-          @click="toggleDebugMode"
-          :type="debugMode ? 'info' : 'default'"
-          strong
-          size="medium"
-          style="margin-left: 10px;"
-      >
-          {{ debugMode ? '调试模式 (模拟下一步)' : '自动模式 (点击地图)' }}
+        {{ isManualInputMode ? '手动输入' : '地图点击' }}
       </n-button>
     </div>
 
-    <h4>{{ currentDisplayTitle }}</h4>
+    <h4>当前参数:</h4>
+    <div class="input-group">
+      <label>标的类型:</label>
+      <n-select v-model:value="coverType" :options="coverOptions" placeholder="请选择标的类型" />
+    </div>
+    <div class="input-group">
+      <label>保额 (insured_amount):</label>
+      <n-input-number v-model:value="insuredAmount" :min="0" :step="10000" />
+    </div>
+
     <div v-if="isManualInputMode" class="manual-input-fields">
       <div class="input-group">
         <label>经度 (Lon):</label>
@@ -32,201 +31,130 @@
         <label>纬度 (Lat):</label>
         <n-input-number v-model:value="manualInput.lat" :min="-90" :max="90" :step="0.01" />
       </div>
-      <div class="input-group">
-        <label>预测台风级别:</label>
-        <n-select v-model:value="manualInput.typhoonLevel" :options="typhoonLevelOptions" />
-      </div>
-      <div class="input-group">
-        <label>预测是否命中承保区域:</label>
-        <n-switch v-model:value="manualInput.impactRegion" />
-      </div>
-      <div class="input-group">
-        <label>预测提前时间:</label>
-        <n-select v-model:value="manualInput.predictTime" :options="predictTimeOptions" />
-      </div>
       <div class="manual-action-buttons">
         <n-button type="primary" @click="startManualSimulation" :disabled="!isManualDataComplete">开始模拟</n-button>
         <n-button type="default" @click="resetInputs" style="margin-left: 10px;">重置</n-button>
       </div>
     </div>
 
-    <div v-else>
-      <p v-if="debugMode" class="info-message debug-info">
-        调试模式已启用。点击“模拟下一步”来推进流程。
+    <div v-else class="display-fields">
+      <p v-if="!isDataAvailableForDisplay" class="info-message">
+        请在地图上点击选择一个位置
       </p>
-      <p v-else-if="!isDataAvailableForDisplay" class="info-message">
-        等待外部数据输入，例如从地图选择一个点位。
-      </p>
-
-      <div class="input-group">
-        <label>经度:</label>
-        <span>{{ displayParams.lon !== null ? displayParams.lon.toFixed(2) : 'N/A' }}</span>
+      <div v-else>
+        <div class="input-group">
+          <label>经度:</label>
+          <span>{{ props.lon !== null ? props.lon.toFixed(2) : 'N/A' }}</span>
+        </div>
+        <div class="input-group">
+          <label>纬度:</label>
+          <span>{{ props.lat !== null ? props.lat.toFixed(2) : 'N/A' }}</span>
+        </div>
       </div>
-      <div class="input-group">
-        <label>纬度:</label>
-        <span>{{ displayParams.lat !== null ? displayParams.lat.toFixed(2) : 'N/A' }}</span>
-      </div>
-      <div class="input-group">
-        <label>预测台风级别:</label>
-        <span>{{ getTyphoonLevelLabel(displayParams.typhoonLevel) }}</span>
-      </div>
-      <div class="input-group">
-        <label>预测是否命中承保区域:</label>
-        <span>{{ displayParams.impactRegion ? '是' : '否' }}</span>
-      </div>
-      <div class="input-group">
-        <label>预测提前时间:</label>
-        <span>{{ getPredictTimeLabel(displayParams.predictTime) }}</span>
-      </div>
-
-      <div v-if="debugMode" class="debug-buttons">
-        <n-button @click="emit('nextDebugStep')" type="info">模拟下一步</n-button>
-        <n-button @click="resetInputs" type="default" style="margin-left: 10px;">重置模拟</n-button>
+      <div class="manual-action-buttons" style="margin-top: 1.5rem;">
+        <n-button type="primary" @click="startMapSimulation" :disabled="!isDataAvailableForDisplay">开始模拟</n-button>
+        <n-button type="default" @click="resetInputs" style="margin-left: 10px;">重置</n-button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, reactive } from 'vue';
-import { NButton, NInputNumber, NSelect, NSwitch } from 'naive-ui';
+import { ref, computed, reactive } from 'vue';
+import { NButton, NInputNumber, NSelect } from 'naive-ui';
 
-// 从父组件 (InsuranceOverview) 接收的 props
 const props = defineProps({
   lat: { type: Number, default: null },
   lon: { type: Number, default: null },
-  typhoonLevel: { type: String, default: 'none' },
-  impactRegion: { type: Boolean, default: false },
-  predictTime: { type: String, default: 'none' },
-  debugMode: { type: Boolean, default: false } // 由 composable 通过父组件控制
 });
 
-// 向父组件发出的事件
 const emit = defineEmits([
-  'update:debugMode',      // 通知父组件调试模式的切换
-  'startSimulation',       // 通知父组件使用参数开始模拟
-  'resetSimulation',       // 通知父组件重置模拟状态
-  'nextDebugStep'          // 通知父组件推进调试下一步
+  'startSimulation',
+  'resetSimulation',
 ]);
 
-// --- 内部状态 ---
+// 修正后的选项，value 为字符串
+const coverOptions = [
+  { label: '渔排', value: '渔排' },
+  { label: '农房', value: '农房' },
+  { label: '光伏电站', value: '光伏电站' },
+  { label: '普通企业厂房', value: '普通企业厂房' },
+  { label: '民房(砖木结构）', value: '民房(砖木结构）' },
+  { label: '多层住宅（≤7层）', value: '多层住宅（≤7层）' },
+  { label: '高层住宅（≥8层）', value: '高层住宅（≥8层）' },
+];
+
 const isManualInputMode = ref(false);
 
+const coverType = ref('普通企业厂房'); // 绑定到新的变量，默认值是一个字符串
+const insuredAmount = ref(200000);
+
 const manualInput = reactive({
-  lat: null,
   lon: null,
-  typhoonLevel: 'none',
-  impactRegion: false,
-  predictTime: 'none'
+  lat: null,
 });
 
-// --- 选项数据 ---
-const typhoonLevelOptions = [
-  { label: '5-6 级 (轻微)', value: 'level5-6' },
-  { label: '7-8 级 (中等)', value: 'level7-8' },
-  { label: '9-10 级 (严重)', value: 'level9-10' },
-  { label: '无', value: 'none', disabled: true }
-];
-
-const predictTimeOptions = [
-  { label: '提前一周', value: 'oneWeek' },
-  { label: '提前两周', value: 'twoWeeks' },
-  { label: '提前三周', value: 'threeWeeks' },
-  { label: '无', value: 'none', disabled: true }
-];
-
-// --- 计算属性 ---
-
-// 当前 UI 中显示的参数 (手动输入或外部传入)
-const displayParams = computed(() => {
-  return isManualInputMode.value ? manualInput : props;
-});
-
-// 检查手动输入是否完整
 const isManualDataComplete = computed(() => {
-  const data = manualInput;
-  return data.lat !== null && data.lon !== null &&
-         data.typhoonLevel !== 'none' &&
-         data.predictTime !== 'none';
+  return manualInput.lat !== null && manualInput.lon !== null;
 });
 
-// 检查是否有数据可供显示 (只需经纬度即可)
 const isDataAvailableForDisplay = computed(() => {
-  const params = displayParams.value;
-  return params.lat !== null && params.lon !== null;
+  return props.lat !== null && props.lon !== null;
 });
 
-// 显示区域的标题
-const currentDisplayTitle = computed(() => {
-  return isManualInputMode.value ? '手动输入模拟参数:' : '当前模拟参数:';
-});
-
-// --- 函数 ---
-
-// 获取台风级别的标签
-function getTyphoonLevelLabel(value) {
-  const option = typhoonLevelOptions.find(opt => opt.value === value);
-  return option ? option.label : 'N/A';
-}
-
-// 获取预测时间的标签
-function getPredictTimeLabel(value) {
-  const option = predictTimeOptions.find(opt => opt.value === value);
-  return option ? option.label : 'N/A';
-}
-
-// 切换手动输入模式
 const toggleManualInputMode = () => {
   isManualInputMode.value = !isManualInputMode.value;
-  resetInputs(); // 切换模式时重置所有输入
-  if (isManualInputMode.value) {
-    emit('update:debugMode', false); // 确保在手动模式下调试模式是关闭的
-  }
+  resetInputs();
 };
 
-// 切换调试模式
-const toggleDebugMode = () => {
-  if (!isManualInputMode.value) { // 只允许在非手动模式下切换
-    emit('update:debugMode', !props.debugMode);
-    // 重置输入由父组件在接收到 update:debugMode 事件后处理
-  }
-};
-
-// 重置所有输入 (手动输入状态) 并通知父组件重置模拟
 const resetInputs = () => {
-  manualInput.lat = null;
   manualInput.lon = null;
-  manualInput.typhoonLevel = 'none';
-  manualInput.impactRegion = false;
-  manualInput.predictTime = 'none';
-  emit('resetSimulation'); // 通知父组件重置模拟状态
+  manualInput.lat = null;
+  coverType.value = '普通企业厂房'; // 重置为默认字符串
+  insuredAmount.value = 200000;
+  emit('resetSimulation');
 };
 
-// 开始手动模拟
 const startManualSimulation = () => {
+  const dataToSend = {
+    username: 'test_user', // 接口文档中需要的字段，暂时用固定值
+    longitude: manualInput.lon,
+    latitude: manualInput.lat,
+    cover: coverType.value, // 发送标的类型字符串
+    insured_amount: insuredAmount.value,
+  };
+  console.log('手动输入模式 - 即将发送的数据:', dataToSend);
   if (isManualDataComplete.value) {
-    // 将手动输入数据发送给父组件
-    emit('startSimulation', { ...manualInput }); // 创建一个浅拷贝
+    emit('startSimulation', dataToSend);
   }
 };
 
-// 不需要监听 props.lat, props.lon 等，因为父组件 (InsuranceOverview) 会监听自己的数据变化，
-// 然后调用 useClaimSimulation 的 setSimulationParams 和 startSimulation。
-// 该组件仅负责显示接收到的 props 并发出用户操作。
-
+const startMapSimulation = () => {
+  const dataToSend = {
+    username: 'test_user', // 接口文档中需要的字段，暂时用固定值
+    longitude: props.lon,
+    latitude: props.lat,
+    cover: coverType.value, // 发送标的类型字符串
+    insured_amount: insuredAmount.value,
+  };
+  console.log('地图点击模式 - 即将发送的数据:', dataToSend);
+  if (isDataAvailableForDisplay.value) {
+    emit('startSimulation', dataToSend);
+  }
+};
 </script>
 
 <style scoped>
-/* 保持现有样式，或根据您的 Naive UI 主题进行调整 */
+/* ... 样式保持不变 ... */
 .claim-input-panel {
   padding: 1.5rem;
   border-radius: 8px;
   background-color: var(--input-bg);
   border: 1px solid var(--border-color-light);
-  min-height: 250px; /* 根据需要调整最小高度 */
+  min-height: 250px;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start; /* 更改为 flex-start 以实现顶部对齐 */
+  justify-content: flex-start;
   position: relative;
 }
 
@@ -243,27 +171,29 @@ h4 {
 }
 
 .input-group label {
-  flex: 0 0 180px;
+  flex: 0 0 120px;
   margin-right: 15px;
   font-weight: bold;
   color: var(--text-secondary);
+  text-align: right;
 }
 
 .input-group span {
-    flex: 1;
-    padding: 0.6rem 1rem;
-    color: var(--text-primary);
-    background-color: var(--bg-color-light);
-    border: 1px solid var(--border-color);
-    border-radius: 5px;
+  flex: 1;
+  padding: 0.6rem 1rem;
+  color: var(--text-primary);
+  background-color: var(--bg-color-light);
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
 }
 
 .manual-input-fields .n-input-number,
-.manual-input-fields .n-select,
-.manual-input-fields .n-switch {
+.manual-input-fields .n-select {
   flex: 1;
 }
-
+.n-select {
+    width: 100%;
+}
 .manual-action-buttons {
   display: flex;
   justify-content: center;
@@ -272,29 +202,14 @@ h4 {
 }
 
 .info-message {
-    text-align: center;
-    color: #e6a23c;
-    font-style: italic;
-    margin-top: 1.5rem;
-    padding: 0.8rem;
-    background-color: rgba(230, 162, 60, 0.1);
-    border-radius: 6px;
-    border: 1px dashed #e6a23c;
-}
-
-.info-message.debug-info {
-    color: #1890ff;
-    background-color: rgba(24, 144, 255, 0.1);
-    border-color: #1890ff;
-}
-
-.debug-buttons {
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-    margin-top: 20px;
-    padding-top: 15px;
-    border-top: 1px dashed var(--border-color-light);
+  text-align: center;
+  color: #e6a23c;
+  font-style: italic;
+  margin-top: 1.5rem;
+  padding: 0.8rem;
+  background-color: rgba(230, 162, 60, 0.1);
+  border-radius: 6px;
+  border: 1px dashed #e6a23c;
 }
 
 .mode-toggle-container {
@@ -321,7 +236,6 @@ h4 {
   transition: background-color 0.3s ease;
 }
 
-/* 主题变量 */
 :root {
   --text-primary: #333333;
   --text-secondary: #666666;
