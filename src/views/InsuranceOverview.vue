@@ -31,7 +31,7 @@
           </div>
 
           <div class="input-panel-container">
-            <n-card title="参数输入与模拟控制" embedded :bordered="false" size="large">
+            <n-card title="参数输入" embedded :bordered="false" size="large">
               <ClaimInputPanel
                 :lat="claimSimState.simulationParams.lat"
                 :lon="claimSimState.simulationParams.lon"
@@ -307,7 +307,7 @@ const handleDebugModeUpdate = (value) => {
 .map-wrapper {
   display: flex;
   flex-direction: column;
-  height: 450px; /* 地图的固定高度 */
+  height: 574px; /* 地图的固定高度 */
   width: 50%; /* 地图占据一半宽度 */
   /*竖直居中*/
   align-items: center; 

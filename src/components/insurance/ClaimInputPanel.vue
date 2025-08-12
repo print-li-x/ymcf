@@ -18,7 +18,7 @@
       <n-select v-model:value="coverType" :options="coverOptions" placeholder="请选择标的类型" />
     </div>
     <div class="input-group">
-      <label>保额 (insured_amount):</label>
+      <label>保额:</label>
       <n-input-number v-model:value="insuredAmount" :min="0" :step="10000" />
     </div>
 

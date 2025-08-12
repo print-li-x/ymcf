@@ -50,7 +50,7 @@
         <!-- 台风专用时间滑块（改变即触发获取路径，带防抖） -->
         <div class="mt-3">
           <label class="text-sm text-[var(--text-secondary)] mb-1 inline-block">
-            时间: {{ typhoonTime }}
+            时间: {{ typhoonTimeLabel }}
           </label>
           <input
             v-model.number="typhoonTime"
@@ -271,14 +271,29 @@ const prevBaseLayer = ref(null)
 
 /* ============ Labels / Display ============ */
 const varLabels = {
-  time: '时间', lat: '纬度', lon: '经度', level: '层级',
-  t2m: '2米温度', msl: '海平面气压', wind: '风速',
-  surf_2t: '地表 2 米温度', surf_10u: '地表 10 米东西风',
-  surf_10v: '地表 10 米南北风', surf_msl: '海平面气压',
-  atmos_t: '高空温度', atmos_u: '高空东西风', atmos_v: '高空南北风',
-  atmos_q: '高空比湿', atmos_z: '高空位势高度',
-  static_z: '地形高度', static_slt: '陆地坡度', static_lsm: '陆地/海洋掩码'
-}
+  time: '时间',
+  lon: '经度',
+  lat: '纬度',
+  level: '层级',
+  static_z: '地形高度',
+  static_slt: '陆地坡度',
+  static_lsm: '陆地/海洋掩码',
+  surf_2t: '地表 2 米温度',
+  surf_10u: '地表 10 米东西风',
+  surf_10v: '地表 10 米南北风',
+  surf_msl: '海平面气压',
+  surf_tp: '地表总降水量',
+  surf_tp6h: '地表6小时总降水量',
+  atmos_t: '高空温度',
+  atmos_u: '高空东西风',
+  atmos_v: '高空南北风',
+  atmos_w: '高空垂直速度',
+  atmos_q: '高空比湿',
+  atmos_z: '高空位势高度',
+  t2m: '2米温度',
+  msl: '海平面气压',
+  wind: '风速'
+};
 function displayVar (v) { return varLabels[v] || v }
 
 /* ============ Drag (positioning) ============ */
@@ -397,7 +412,7 @@ async function fetchVars(){
     const attrRes = await fetch(`${API_BASE}/variables/attributes`)
     if (attrRes.ok) {
       const attr = await attrRes.json()
-      timeMax.value = attr.attributes?.forecast_steps ?? 100
+      timeMax.value = attr.attributes?.forecast_steps ?? 61
       levelMax.value = attr.attributes?.level_size ?? 7
       // 同步给 typhoon 时间条
       typhoonTimeMax.value = timeMax.value
@@ -460,6 +475,11 @@ function addManualVar () {
 
 /* ============ Typhoon Track (fetch & convert) ============ */
 const typhoonVar   = ref('track')   // 供模板切换“台风路径/风险地图”
+const typhoonTimeLabel = computed(() => {
+  const idx = Number(typhoonTime.value)
+  const pt  = trackPoints.value[idx]
+  return pt ? pt.timeStr : idx            
+})  
 const trackLoading = ref(false)
 const trackError   = ref('')
 const trackPoints  = ref([])        // [{timeNs,timeMs,timeISO,timeStr,lat,lon,msl,wind}]
@@ -487,11 +507,11 @@ function normalizeTrackApi(trackRaw) {
   if (!trackRaw || typeof trackRaw !== 'object') return empty
   const arrNum = (a) => Array.isArray(a) ? a.map(Number) : []
   return {
-    times: arrNum(trackRaw.times),
-    lats:  arrNum(trackRaw.lats),
-    lons:  arrNum(trackRaw.lons),
-    msls:  arrNum(trackRaw.msls),   // Pa
-    winds: arrNum(trackRaw.winds),  // m/s
+    times: arrNum(trackRaw.time),
+    lats:  arrNum(trackRaw.lat),
+    lons:  arrNum(trackRaw.lon),
+    msls:  arrNum(trackRaw.msl),   // Pa
+    winds: arrNum(trackRaw.wind),  // m/s
   }
 }
 
@@ -579,8 +599,7 @@ async function fetchTrack() {
   trackError.value = ''
   trackLoading.value = true
   try {
-    const initLat = 28.50
-    const initLon = 131.25
+    const { lat: initLat, lon: initLon } = await getCurrentTyCenter()
     const initIdx = Number.isFinite(Number(typhoonTime.value)) ? Number(typhoonTime.value) : 0
 
     const res = await fetch(`${API_BASE}/variables/trackers`, {
@@ -598,7 +617,7 @@ async function fetchTrack() {
       throw new Error(txt || `HTTP ${res.status}`)
     }
     const json = await res.json()
-    const norm = normalizeTrackApi(json?.track)
+    const norm = normalizeTrackApi(json)
     const pts  = buildTrackPoints(norm)
 
     trackPoints.value = pts
@@ -619,6 +638,22 @@ async function fetchTrack() {
   }
 }
 
+/** ───── 获取当前活跃台风中心 ───── */
+async function getCurrentTyCenter () {
+  try {
+    const res = await fetch(`${API_BASE}/variables/current`)
+    if (!res.ok) throw new Error(res.statusText)
+    const list = await res.json()
+    if (Array.isArray(list) && list.length) {
+      const first = list[0]
+      const lat = parseFloat(first.lat ?? first.latitude ?? first.latitud ?? first.Lat ?? first.lat)
+      const lon = parseFloat(first.lng ?? first.lon ?? first.longitude ?? first.Lon ?? first.lng)
+      if (Number.isFinite(lat) && Number.isFinite(lon)) return { lat, lon }
+    }
+  } catch (e) { console.warn('[getCurrentTyCenter] fallback', e) }
+  /** fallback（找不到就用固定点） */
+  return { lat: 28.50, lon: 131.25 }
+}
 /** H. 防抖调度 */
 function scheduleFetchTrack(delay = DEBOUNCE_MS) {
   if (trackTimer.value) {
@@ -662,6 +697,11 @@ watch(typhoonTime, () => {
   }
 })
 
+watch(trackPoints, (pts) => {
+  typhoonTimeMax.value = pts.length ? pts.length - 1 : 0
+  // 超界保护
+  if (typhoonTime.value > typhoonTimeMax.value) typhoonTime.value = typhoonTimeMax.value
+})
 /* -----------------------
  *  核心：风险地图变量解析
  * ----------------------*/
